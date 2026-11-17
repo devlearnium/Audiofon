@@ -1,0 +1,15 @@
+{
+  "name": "Audiofon",
+  "short_name": "Audiofon",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#000000",
+  "icons": [
+    {
+      "src": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxOTIgMTkyIj48cmVjdCB3aWR0aD0iMTkyIiBoZWlnaHQ9IjE5MiIgcng9IjQwIiBmaWxsPSIjMDAwMDAwIi8+PHBhdGggZD0iTTk2IDQwYTI0IDI0IDAgMCAwLTI0IDI0djI0YTI0IDI0IDAgMCAwIDQ4IDBWTTE0NCA0MHYyNGE0OCA0OCAwIDAgMS05NiAwVjQwIiBzdHJva2U9IiM4ODg4ODgiIHN0cm9rZS13aWR0aD0iMTYiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgZmlsbD0ibm9uZSIvPjxwYXRoIGQ9Ik05NiAxMjh2MzJtLTE2IDBoMzIiIHN0cm9rZT0iIzg4ODg4OCIgc3Ryb2tlLXdpZHRoPSIxNiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIi8+PC9zdmc+",
+      "sizes": "192x192",
+      "type": "image/svg+xml"
+    }
+  ]
+}

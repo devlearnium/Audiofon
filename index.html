@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Audiofon</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#000000">
+    
+    <style>
+        :root {
+            /* Максимально темная палитра для OLED */
+            --bg-color: #000000;       /* Чистый черный */
+            --card-bg: #0a0a0a;        /* Почти черный для карточки */
+            --element-color: #1c1c1e;  /* Темно-серый для кнопок и трека */
+            --text-color: #e5e5ea;     /* Светло-серый текст (не белый) */
+            --text-light: #666666;     /* Темно-серый для второстепенного текста */
+            --accent: #333333;         /* Серый для активной кнопки */
+            --danger: #777777;         /* Светло-серый для эквалайзера (вместо красного) */
+            --track-color: #1c1c1e;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            color: var(--text-color);
+            height: 100vh;
+            height: 100dvh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        #error-box {
+            display: none;
+            position: fixed;
+            top: 10px; left: 10px; right: 10px;
+            background: #2a1a1a; color: #ff453a;
+            padding: 15px; border-radius: 16px;
+            font-size: 14px; z-index: 9999;
+            border: 1px solid #4a2a2a;
+        }
+
+        .app-card {
+            background-color: var(--card-bg);
+            border-radius: 36px;
+            padding: 25px 20px;
+            width: 100%;
+            height: 100%;
+            max-height: 800px;
+            margin: 20px auto;
+            max-width: 400px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            border: 1px solid #111;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header { text-align: center; width: 100%;}
+        .header h1 { font-size: 22px; font-weight: 700; letter-spacing: 0.5px; }
+        .header p { font-size: 13px; color: var(--text-light); margin-top: 4px; }
+
+        /* Индикатор громкости */
+        .visualizer {
+            width: 100%;
+            height: 120px;
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+            gap: 4px;
+            margin: 20px 0;
+            padding: 0 20px;
+        }
+
+        .bar {
+            flex-grow: 1;
+            background-color: var(--element-color);
+            border-radius: 4px 4px 0 0;
+            height: 10%;
+            transition: height 0.1s, background-color 0.1s;
+        }
+
+        /* При звуке эквалайзер становится светло-серым */
+        .bar.triggered {
+            background-color: var(--danger);
+        }
+
+        /* Слайдер */
+        .slider-container {
+            width: 100%;
+            padding: 0 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+
+        .slider-labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-light);
+        }
+
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 40px;
+            background: transparent;
+            outline: none;
+        }
+
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%; height: 8px;
+            background: var(--track-color);
+            border-radius: 4px;
+        }
+
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 24px; width: 24px;
+            border-radius: 50%;
+            background: #555555; /* Серый ползунок */
+            box-shadow: 0 2px 8px rgba(0,0,0,0.8);
+            margin-top: -8px; 
+        }
+
+        /* Кнопка */
+        .action-btn {
+            width: 100%;
+            padding: 20px;
+            border-radius: 30px;
+            background-color: var(--element-color);
+            border: 1px solid #2a2a2a;
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--text-color);
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+        }
+
+        /* Кнопка ОСТАНОВИТЬ теперь темно-серая, не белая */
+        .action-btn.running { 
+            background-color: var(--accent); 
+            color: var(--text-color); 
+            border-color: #444;
+        }
+        
+        /* Плеер */
+        .result-area {
+            display: none;
+            flex-direction: column;
+            gap: 15px;
+            width: 100%;
+            margin-top: 20px;
+            animation: fadeIn 0.3s;
+        }
+        
+        .result-area.active { display: flex; }
+
+        audio {
+            width: 100%;
+            border-radius: 20px;
+            outline: none;
+            /* Инверсия для темной темы плеера */
+            filter: invert(1) hue-rotate(180deg);
+        }
+
+        .status-text {
+            text-align: center;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-light);
+            margin-top: 10px;
+            min-height: 20px;
+        }
+
+        .download-btn {
+            display: block;
+            text-align: center;
+            padding: 14px;
+            border-radius: 16px;
+            background-color: var(--element-color);
+            color: var(--text-color);
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 14px;
+            border: 1px solid #2a2a2a;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="error-box"></div>
+
+    <div class="app-card">
+        <div class="header">
+            <h1>Audiofon</h1>
+            <p>Запись по уровню шума</p>
+        </div>
+
+        <div class="visualizer" id="visualizer"></div>
+
+        <div class="slider-container" id="sliderContainer">
+            <div class="slider-labels">
+                <span>Тише (игнор шума)</span>
+                <span>Громче (макс. чувств.)</span>
+            </div>
+            <input type="range" id="sensSlider" min="1" max="100" value="50">
+        </div>
+
+        <div class="status-text" id="statusText">Ожидание запуска</div>
+        <button class="action-btn" id="actionBtn">НАЧАТЬ СЛУШАТЬ</button>
+
+        <div class="result-area" id="resultArea">
+            <audio id="audioPlayer" controls></audio>
+            <a class="download-btn" id="downloadBtn" download="audiofon_record.webm">Скачать запись</a>
+        </div>
+    </div>
+
+    <audio id="bgAudio" loop src="data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA"></audio>
+
+    <script>
+        window.onerror = function(msg, src, line) {
+            const err = document.getElementById('error-box');
+            err.style.display = 'block';
+            err.innerHTML = `<b>Ошибка:</b> ${msg} (строка ${line})`;
+        };
+
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js').catch(err => console.log('SW reg failed', err));
+        }
+
+        const actionBtn = document.getElementById('actionBtn');
+        const statusText = document.getElementById('statusText');
+        const sensSlider = document.getElementById('sensSlider');
+        const visualizer = document.getElementById('visualizer');
+        const resultArea = document.getElementById('resultArea');
+        const audioPlayer = document.getElementById('audioPlayer');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const sliderContainer = document.getElementById('sliderContainer');
+        const bgAudio = document.getElementById('bgAudio');
+
+        let isRunning = false;
+        let audioCtx = null;
+        let analyser = null;
+        let dataArray = null;
+        let mediaRecorder = null;
+        
+        let recordedChunks = [];
+        let isCapturing = false;
+        let silenceTimer = null;
+        let animationId = null;
+        let wakeLock = null;
+        let mediaStream = null;
+
+        const NUM_BARS = 20;
+        for (let i = 0; i < NUM_BARS; i++) {
+            const bar = document.createElement('div');
+            bar.className = 'bar';
+            visualizer.appendChild(bar);
+        }
+        const bars = document.querySelectorAll('.bar');
+
+        function initAudio() {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+        }
+
+        async function startListening() {
+            initAudio();
+            recordedChunks = [];
+            resultArea.classList.remove('active');
+            sliderContainer.style.display = 'flex';
+
+            try {
+                mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                
+                analyser = audioCtx.createAnalyser();
+                analyser.fftSize = 256;
+                dataArray = new Uint8Array(analyser.frequencyBinCount);
+                const source = audioCtx.createMediaStreamSource(mediaStream);
+                source.connect(analyser);
+
+                let options = { mimeType: 'audio/webm' };
+                if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+                    options = { mimeType: 'audio/mp4' };
+                }
+                
+                mediaRecorder = new MediaRecorder(mediaStream, options);
+                
+                mediaRecorder.ondataavailable = (e) => {
+                    if (e.data.size > 0) recordedChunks.push(e.data);
+                };
+
+                mediaRecorder.onstop = () => {
+                    if (recordedChunks.length > 0) {
+                        const blob = new Blob(recordedChunks, { type: options.mimeType });
+                        const url = URL.createObjectURL(blob);
+                        audioPlayer.src = url;
+                        downloadBtn.href = url;
+                        downloadBtn.download = `audiofon_${Date.now()}.webm`;
+                        resultArea.classList.add('active');
+                        statusText.textContent = 'Готово! Запись сформирована.';
+                    } else {
+                        statusText.textContent = 'Записано 0 фрагментов (было слишком тихо)';
+                    }
+                };
+
+                mediaRecorder.start(250); 
+                
+                isRunning = true;
+                actionBtn.textContent = 'ОСТАНОВИТЬ';
+                actionBtn.classList.add('running');
+                statusText.textContent = 'Слушаю... Жду громких звуков';
+                
+                isCapturing = true;
+
+                bgAudio.volume = 0.01;
+                bgAudio.play().catch(e => console.log("BG blocked"));
+                requestWakeLock();
+
+                loop();
+
+            } catch (err) {
+                alert("Нет доступа к микрофону. Разрешите доступ в настройках.");
+            }
+        }
+
+        function stopListening() {
+            isRunning = false;
+            actionBtn.textContent = 'НАЧАТЬ СЛУШАТЬ';
+            actionBtn.classList.remove('running');
+            
+            if (animationId) cancelAnimationFrame(animationId);
+            
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                mediaRecorder.stop();
+            }
+            
+            if (mediaStream) {
+                mediaStream.getTracks().forEach(track => track.stop());
+            }
+            
+            bgAudio.pause();
+            bgAudio.currentTime = 0;
+            if (wakeLock !== null) {
+                wakeLock.release().then(() => { wakeLock = null; });
+            }
+
+            statusText.textContent = 'Обработка аудио...';
+            sliderContainer.style.display = 'none';
+        }
+
+        function loop() {
+            if (!isRunning) return;
+
+            analyser.getByteTimeDomainData(dataArray);
+            let sum = 0;
+            for (let i = 0; i < dataArray.length; i++) {
+                let x = (dataArray[i] - 128) / 128.0;
+                sum += x * x;
+            }
+            let rms = Math.sqrt(sum / dataArray.length);
+
+            let visualLevel = Math.min(rms * 10, 1); 
+            
+            bars.forEach((bar, index) => {
+                let randomOffset = Math.random() * 0.15;
+                let h = Math.max(10, (visualLevel + randomOffset) * 100);
+                bar.style.height = `${h}%`;
+            });
+
+            const sensitivity = parseInt(sensSlider.value);
+            const threshold = 0.08 - (sensitivity * 0.00075); 
+            
+            if (rms > threshold) {
+                if (!isCapturing) {
+                    isCapturing = true;
+                    if (mediaRecorder && mediaRecorder.state === 'paused') {
+                        mediaRecorder.resume();
+                    }
+                    statusText.textContent = '● Запись звука';
+                    bars.forEach(b => b.classList.add('triggered'));
+                }
+                
+                if (silenceTimer) {
+                    clearTimeout(silenceTimer);
+                    silenceTimer = null;
+                }
+            } else {
+                if (isCapturing && !silenceTimer) {
+                    silenceTimer = setTimeout(() => {
+                        isCapturing = false;
+                        if (mediaRecorder && mediaRecorder.state === 'recording') {
+                            mediaRecorder.pause();
+                        }
+                        statusText.textContent = 'Слушаю... Жду громких звуков';
+                        bars.forEach(b => b.classList.remove('triggered'));
+                        silenceTimer = null;
+                    }, 600); 
+                }
+            }
+
+            animationId = requestAnimationFrame(loop);
+        }
+
+        async function requestWakeLock() {
+            try {
+                if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen');
+            } catch (err) {}
+        }
+
+        actionBtn.addEventListener('click', () => {
+            if (!isRunning) startListening();
+            else stopListening();
+        });
+    </script>
+</body>
+</html>
